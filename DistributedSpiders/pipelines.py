@@ -118,18 +118,16 @@ class MongoPipeline(object):
         self.__db_data_name = None
         self.__collection_name = None
         self.__record_name = "spider_record"
-        self.__db_data = None
+        self.__db = None
         self.__col_data = None
-        self.__db_record = None
         self.__col_record = None
 
     def open_spider(self, spider):
         self.__db_data_name = spider.get_config_by_key_default("mongo_db", "spider_data")
         self.__collection_name = spider.get_config_by_key_default("mongo_col", spider.name)
-        self.__db_data = self.__mongo_client[self.__db_data_name]
-        self.__col_data = self.__db_data[self.__collection_name]
-        self.__db_record = self.__mongo_client[self.__db_data_name]
-        self.__col_record = self.__db_record[self.__record_name]
+        self.__db = self.__mongo_client[self.__db_data_name]
+        self.__col_data = self.__db[self.__collection_name]
+        self.__col_record = self.__db[self.__record_name]
 
     def close_spider(self, spider):
         pass

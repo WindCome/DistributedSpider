@@ -12,7 +12,7 @@ from DistributedSpiders.items import DistributedSpidersItem
 
 class DistributedSpider(scrapy.Spider):
 
-    def __init__(self, task_id=None, p_name=None,  **kwargs):
+    def __init__(self, task_id=None, p_name=None, mongo_db=None, mongo_col=None,  **kwargs):
         super().__init__(**kwargs)
         self.duplicateFilterPipeline = None
         self.rabbitMQPipeline = None
@@ -30,6 +30,10 @@ class DistributedSpider(scrapy.Spider):
             self.channel_name = self.task_id + self.name
         self.queue = queue.LifoQueue()
         self.__config_map = {}
+        if mongo_db is not None:
+            self.__config_map['mongo_db'] = mongo_db
+        if mongo_col is not None:
+            self.__config_map['mongo_col'] = mongo_col
         self.__callback_map = {}
         self.__mq_timeout = int(settings.get("DOWNLOAD_DELAY"))*10
         self.__consumer_thread = None
