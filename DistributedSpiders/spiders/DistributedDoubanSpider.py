@@ -34,6 +34,7 @@ class DistributedDoubanSpider(DistributedSpider):
             item['mark'] = 'info'
             item['data'] = x["url"]
             yield item
+        self.commit_message(response.url)
 
     def parse(self, response):
         doc = etree.HTML(response.body.decode(response.encoding))
@@ -46,3 +47,4 @@ class DistributedDoubanSpider(DistributedSpider):
         item['mark'] = 'data'
         item['data'] = json.dumps({"year": year, "name": movie_name, "star": star}, ensure_ascii=False)
         yield item
+        self.commit_message(response.url)

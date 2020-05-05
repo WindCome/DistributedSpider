@@ -7,7 +7,6 @@ from scrapy.conf import settings
 
 from DistributedSpiders.frame.Middleware import RabbitMQManager
 from DistributedSpiders.items import DistributedSpidersItem
-from DistributedSpiders.utils.JSONUtils import ItemEncoder
 
 
 class DistributedSpider(scrapy.Spider):
@@ -20,13 +19,9 @@ class DistributedSpider(scrapy.Spider):
         self.channel_name = task_id+self.name
         self.queue = queue.LifoQueue()
         self.__callback_map = {}
-        self.__mq_timeout = int(settings.get("DOWNLOAD_DELAY"))*50
-        # self.__rabbit_manager = RabbitMQManager()
-        # self.__mq_channel = self.__rabbit_manager.setup_consume_channel(self.channel_name, self.__consume_callback)
+        self.__mq_timeout = int(settings.get("DOWNLOAD_DELAY"))*10
         self.__consumer_thread = None
         self.__commit_map = {}
-        self.current_handle_items = None
-        self.current_handle_results = []
 
     def __async_consuming(self):
         self.__rabbit_manager = RabbitMQManager()
@@ -45,18 +40,20 @@ class DistributedSpider(scrapy.Spider):
         crawler.signals.connect(spider.spider_idle, signal=signals.spider_idle)
         return spider
 
-    def _get_from_queue(self):
+    def __get_from_queue(self):
         item = self.queue.get(timeout=self.__mq_timeout)
-        print('get_from_queue {}'.format(json.dumps(item, cls=ItemEncoder)))
+        yield item
+
+    def __item_to_request(self, item):
         if item['mark'] not in self.__callback_map.keys():
             raise RuntimeError('Can not find parse callback function of mark key {}'
                                '(Call set_parse_callback method for setting ?) '.format(item['mark']))
-        yield scrapy.Request(url=item['data'], callback=self.__callback_map[item['mark']])
+        return scrapy.Request(url=item['data'], callback=self.__callback_map[item['mark']])
 
     def spider_idle(self, spider):
         try:
-            for request in self._get_from_queue():
-                self.crawler.engine.crawl(request, self)
+            for item in self.__get_from_queue():
+                self.crawler.engine.crawl(self.__item_to_request(item), self)
             from scrapy.exceptions import DontCloseSpider
             raise DontCloseSpider()
         except queue.Empty:
@@ -75,15 +72,11 @@ class DistributedSpider(scrapy.Spider):
             try:
                 item = self.duplicateFilterPipeline.process_item(item, self)
                 self.rabbitMQPipeline.process_item(item, self)
+                # self.commit_message(item)
             except DropItem:
                 pass
-            print('start_requests')
-            self.commit_message(item)
-        for request in self._get_from_queue():
-            print("start request loop")
-            yield request
-            print("end request loop")
-
+        for item in self.__get_from_queue():
+            yield self.__item_to_request(item)
 
     def __consume_callback(self, ch, method, properties, body):
         data = str(body, encoding='utf-8')
@@ -92,7 +85,7 @@ class DistributedSpider(scrapy.Spider):
         item = DistributedSpidersItem()
         item['mark'] = tmp['mark']
         item['data'] = tmp['data']
-        self.__commit_map[json.dumps(item, cls=ItemEncoder)] = (ch, method)
+        self.__commit_map[item['data']] = (ch, method)
         self.queue.put(item)
 
     def async_consuming(self):
@@ -105,10 +98,8 @@ class DistributedSpider(scrapy.Spider):
         self.__callback_map[mark_value] = callback_fun
         return self
 
-    def commit_message(self, item):
-        json_info = json.dumps(item, cls=ItemEncoder)
-        if json_info not in self.__commit_map.keys():
+    def commit_message(self, url):
+        if url not in self.__commit_map.keys():
             return
-        print("commit {}".format(json_info))
-        ch, method = self.__commit_map[json_info]
+        ch, method = self.__commit_map[url]
         ch.basic_ack(delivery_tag=method.delivery_tag)

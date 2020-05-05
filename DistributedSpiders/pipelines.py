@@ -18,8 +18,6 @@ from DistributedSpiders.utils.JSONUtils import ItemEncoder
 
 class DistributedspidersPipeline(object):
     def process_item(self, item, spider):
-        print("Pipeline commit")
-        spider.commit_message(item)
         return item
 
 
