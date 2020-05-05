@@ -1,4 +1,5 @@
 import json
+import os
 import queue
 import threading
 
@@ -11,13 +12,24 @@ from DistributedSpiders.items import DistributedSpidersItem
 
 class DistributedSpider(scrapy.Spider):
 
-    def __init__(self, task_id="", **kwargs):
+    def __init__(self, task_id=None, p_name=None,  **kwargs):
         super().__init__(**kwargs)
         self.duplicateFilterPipeline = None
         self.rabbitMQPipeline = None
+        # 任务ID
         self.task_id = task_id
-        self.channel_name = task_id+self.name
+        if self.task_id is None:
+            self.task_id = self.name
+        # 进程名称
+        self.p_name = p_name
+        if self.p_name is None:
+            # 启动参数没有指定爬虫进程名称时，使用MAC地址和PID的拼接作为进程名称
+            self.p_name = DistributedSpider.get_mac_address() + str(os.getpid())
+        self.channel_name = task_id
+        if task_id is not None:
+            self.channel_name = self.task_id + self.name
         self.queue = queue.LifoQueue()
+        self.__config_map = {}
         self.__callback_map = {}
         self.__mq_timeout = int(settings.get("DOWNLOAD_DELAY"))*10
         self.__consumer_thread = None
@@ -103,3 +115,21 @@ class DistributedSpider(scrapy.Spider):
             return
         ch, method = self.__commit_map[url]
         ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    def get_config_by_key(self, key):
+        if key not in self.__config_map.keys():
+            return None
+        return self.__config_map[key]
+
+    def get_config_by_key_default(self, key, default_val):
+        val = self.get_config_by_key(key)
+        if val is None:
+            return default_val
+        return val
+
+    @staticmethod
+    def get_mac_address():
+        import uuid
+        node = uuid.getnode()
+        mac = uuid.UUID(int=node).hex[-12:]
+        return mac

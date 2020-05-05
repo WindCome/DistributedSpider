@@ -68,7 +68,8 @@ SPIDER_MIDDLEWARES = {
 ITEM_PIPELINES = {
     'DistributedSpiders.pipelines.DuplicateFilterPipeline': 200,
    'DistributedSpiders.pipelines.RabbitMQPipeline': 300,
-   'DistributedSpiders.pipelines.DistributedspidersPipeline': 400,
+   # 'DistributedSpiders.pipelines.DistributedspidersPipeline': 400,
+    'DistributedSpiders.pipelines.MongoPipeline': 500
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -112,3 +113,6 @@ MQ_PORT = 5672
 
 REDIS_HOST = '121.36.82.230'
 REDIS_PORT = 6379
+
+MONGO_HOST = '121.36.82.230'
+MONGO_PORT = 27017

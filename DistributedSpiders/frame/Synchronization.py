@@ -6,10 +6,6 @@ from DistributedSpiders.frame.Middleware import RedisManager
 
 class DistributedLock:
 
-    # __redis_host = settings.get("REDIS_HOST")
-    # __redis_port = settings.get("REDIS_PORT")
-    # __redis_host = '121.36.82.230'
-    # __redis_port = 6379
     redis_client = RedisManager.get_redis_client()
 
     # 获取一个分布式锁
@@ -18,7 +14,6 @@ class DistributedLock:
     # time_out: 锁的超时时间
     @staticmethod
     def acquire_lock(lock_name, identifier, acquire_time=10, time_out=10):
-        # identifier = str(uuid.uuid3())
         client = DistributedLock.redis_client
         lock_info = json.dumps({'identifier': identifier, 'count': 1})
         end = time.time() + acquire_time
@@ -49,7 +44,6 @@ class DistributedLock:
         lock_value = pip.get(lock)
         if not lock_value:
             return True
-        # tmp = json.loads(lock_value)
         current_lock_info = json.loads(lock_value)
         if current_lock_info['identifier'] == identifier:
             pip.multi()

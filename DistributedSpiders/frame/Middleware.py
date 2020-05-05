@@ -1,4 +1,5 @@
 import pika
+import pymongo
 import redis
 from scrapy.conf import settings
 
@@ -19,7 +20,7 @@ class RabbitMQManager:
 
     def setup_consume_channel(self, queue_name, callback):
         channel = self.new_channel(queue_name)
-        channel.basic_qos(prefetch_count=1)
+        # channel.basic_qos(prefetch_count=1)
         channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
         return channel
 
@@ -30,11 +31,20 @@ class RabbitMQManager:
 class RedisManager:
     __redis_host = settings.get("REDIS_HOST")
     __redis_port = settings.get("REDIS_PORT")
-    # __redis_host = '121.36.82.230'
-    # __redis_port = 6379
 
-    redis_client = redis.Redis(host=__redis_host, port=__redis_port)
+    __redis_client = redis.Redis(host=__redis_host, port=__redis_port)
 
     @staticmethod
     def get_redis_client():
-        return RedisManager.redis_client
+        return RedisManager.__redis_client
+
+
+class MongoManager:
+    __mongo_host = settings.get("MONGO_HOST")
+    __mongo_port = settings.get("MONGO_PORT")
+
+    __mongo_client = pymongo.MongoClient("mongodb://{}:{}/".format(__mongo_host,__mongo_port))
+
+    @staticmethod
+    def get_mongo_client():
+        return MongoManager.__mongo_client

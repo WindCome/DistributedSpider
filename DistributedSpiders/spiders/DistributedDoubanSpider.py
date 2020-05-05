@@ -20,11 +20,6 @@ class DistributedDoubanSpider(DistributedSpider):
         for i in range(0, 1):
             yield url.format(i * 20)
 
-    # def start_requests(self):
-    #     url = "https://movie.douban.com/j/new_search_subjects?sort=U&range=0,10&tags=&start={}"
-    #     for i in range(0, 1):
-    #         yield url.format(i * 20)
-
     def find_info_page(self, response):
         import json
         info = json.loads(response.body.decode(response.encoding))
