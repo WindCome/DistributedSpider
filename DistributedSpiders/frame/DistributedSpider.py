@@ -4,7 +4,8 @@ import queue
 import threading
 
 import scrapy
-from scrapy.conf import settings
+from scrapy.utils.project import get_project_settings
+settings = get_project_settings()
 
 from DistributedSpiders.frame.Middleware import RabbitMQManager
 from DistributedSpiders.items import DistributedSpidersItem

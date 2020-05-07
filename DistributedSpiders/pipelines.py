@@ -7,7 +7,9 @@
 import json
 import uuid
 
-from scrapy.conf import settings
+from scrapy.utils.project import get_project_settings
+settings = get_project_settings()
+
 from scrapy.exceptions import DropItem
 
 from DistributedSpiders.frame.Middleware import RabbitMQManager, RedisManager, MongoManager
@@ -29,9 +31,11 @@ class DuplicateFilterPipeline(object):
         self.__redis_client = RedisManager.get_redis_client()
         self.__delay = settings.get("DOWNLOAD_DELAY")
         self.__identifier = str(uuid.uuid1())
+        self.salt = ""
 
     def open_spider(self, spider):
         spider.duplicateFilterPipeline = self
+        self.salt = spider.task_id
 
     def close_spider(self, spider):
         pass
@@ -39,7 +43,7 @@ class DuplicateFilterPipeline(object):
     def process_item(self, item, spider):
         if not isinstance(item, DistributedSpidersItem):
             return item
-        fingerprint = DuplicateFilterPipeline.__get_url_fingerprint(item['data'])
+        fingerprint = self.__get_url_fingerprint(item['data'])
         locked = DistributedLock.acquire_lock(fingerprint, self.__identifier,
                                               acquire_time=-1, time_out=5 * self.__delay)
         if not locked:
@@ -56,7 +60,7 @@ class DuplicateFilterPipeline(object):
     def process_item_succeed(self, item):
         if not isinstance(item, DistributedSpidersItem) or item['mark'] == 'data':
             return
-        fingerprint = DuplicateFilterPipeline.__get_url_fingerprint(item['data'])
+        fingerprint = self.__get_url_fingerprint(item['data'])
         duplicate_json_info = self.__redis_client.get(fingerprint)
         if duplicate_json_info is None:
             self.__redis_client.set(fingerprint, json.dumps([{'url': item['data'], 'identifier': self.__identifier}]),
@@ -72,11 +76,10 @@ class DuplicateFilterPipeline(object):
                                     ex=30 * self.__delay)
         DistributedLock.release_lock(fingerprint, identifier=self.__identifier)
 
-    @staticmethod
-    def __get_url_fingerprint(url):
+    def __get_url_fingerprint(self, url):
         import hashlib
         m = hashlib.md5()
-        m.update(url.encode())
+        m.update((url+self.salt).encode())
         return m.hexdigest()
 
 
