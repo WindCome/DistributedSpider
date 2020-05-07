@@ -26,8 +26,10 @@ class DistributedSpider(scrapy.Spider):
         if self.p_name is None:
             # 启动参数没有指定爬虫进程名称时，使用MAC地址和PID的拼接作为进程名称
             self.p_name = DistributedSpider.get_mac_address() + str(os.getpid())
-        self.channel_name = task_id
-        if task_id is not None:
+        self.channel_name = None
+        if task_id is None:
+            self.channel_name = self.name
+        else:
             self.channel_name = self.task_id + self.name
         self.queue = queue.LifoQueue()
         self.__config_map = {}
